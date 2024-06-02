@@ -15,7 +15,25 @@ module customTypes
 
     type, extends(species):: Civilization
     integer:: population
-    end type
+
+    contains
+    procedure :: fractionAlive  ! procedure declaration
+  end type
+    contains
+
+    real function fractionAlive(self) result(frac)
+    class(Civilization), intent(in) :: self
+    frac = real(self%AliveCount) / self%population
+    end function
+
+    ! real function fractionAlive(self) result(frac)
+    !     type(Civilization), intent(in) :: self
+    !     frac = real(self%AliveCount) / self%population
+        ! real:: frac
+        ! frac 
+        
+
+    ! end function
 
 end module
 
