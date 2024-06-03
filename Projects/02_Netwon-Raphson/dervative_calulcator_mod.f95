@@ -23,34 +23,3 @@ module derivative_calculator_mod
 
 end module derivative_calculator_mod
 
-
-module functions_mod
-    use derivative_calculator_mod, only: wp
-    implicit none
-
-
-    contains
-    
-    pure function test_func(x) result(val)
-        ! integer, parameter::wp = kind(1.0d0)
-        ! import wp
-        real(kind=wp), intent(in):: x
-        real(kind=wp) :: val
-
-        val = 3*(x**3) + 2*(x**2) + x
-    end function test_func
-end module functions_mod
-
-program testing
-    use derivative_calculator_mod, only: wp, OVD
-    use functions_mod, only: test_func
-    implicit none
-    ! real(kind=wp):: test_func
-    ! real(kind=wp):: OVD
-    real(kind=wp)::x
-    read *, x
-    print *, test_func(x)
-    print *, OVD(test_func, x)
-
-    
-end program testing
