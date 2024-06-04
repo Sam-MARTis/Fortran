@@ -42,10 +42,15 @@ program main
     real(kind=dp):: dt = 0.01
     integer:: i= 0
 
-    do i=1, 100000
+    open(1, file='solutionValues.txt', status='old')
+
+    do i=1, 10000
         call updateValues(t, y, dy, ddy, dt)
         print*, t, y
+        write(1,*) t, y, y**2
     end do
+    close(1)
+    call execute_command_line('gnuplot -p '//'plot.plt')
 
 
 
