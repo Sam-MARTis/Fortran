@@ -84,7 +84,7 @@ program main
     real(kind=dp):: y = 5
     real(kind=dp):: z = 0
     real(kind=dp):: t = 1
-    real(kind=dp):: dt = 0.01
+    real(kind=dp):: dt = 0.001
     real(kind=dp), dimension(4) :: state 
     integer:: i= 0
     state(1) = x
@@ -95,9 +95,9 @@ program main
 
     open(1, file='solutionValues.txt', status='old')
 
-    do i=1, 5000
+    do i=1, 100000
         call updateValues(4, state, dt)
-        print*, state(3), state(1)
+        ! print*, state(3), state(1)
         write(1,*) state(1), state(2), state(3)
     end do
     close(1)

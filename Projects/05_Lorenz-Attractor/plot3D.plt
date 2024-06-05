@@ -6,4 +6,4 @@ set xlabel "x"
 set ylabel "y"
 set zlabel "z"
 m="solutionValues.txt"
-splot m using 1:2:3 with lines palettefeZZZZ
+splot m using 1:2:3 with lines palette

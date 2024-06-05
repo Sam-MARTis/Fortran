@@ -47,10 +47,10 @@ program main
     do i=1, 10000
         call updateValues(t, y, dy, ddy, dt)
         print*, t, y
-        write(1,*) t, y, y**2
+        write(1,*) t, y
     end do
     close(1)
-    call execute_command_line('gnuplot -p '//'plot.plt')
+    call execute_command_line('gnuplot -p '//'plot2D.plt')
 
 
 
