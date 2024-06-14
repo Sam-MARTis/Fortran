@@ -66,9 +66,10 @@ module StateTools
         real(kind=dp), dimension(:,:), intent(inout)::operation_matrix
         integer::i,j
         real(kind=dp) :: mulFactor = 1.0d0
-        do i=1,size(operation_matrix,1)
+        do i=1,size(operation_matrix(:, 1))
             mulFactor = operation_matrix(i,i)
-            do j=1,size(operation_matrix,2)
+
+            do j=1,size(operation_matrix(1, :))
                 operation_matrix(i,j) = -operation_matrix(i,j)/mulFactor
             end do
             operation_matrix(i,i) = 0
@@ -80,7 +81,7 @@ module StateTools
         real(kind=dp), dimension(:,:), intent(in)::operation_matrix
         real(kind=dp), dimension(:), intent(inout)::rhs
         integer::i
-        do i=1,size(operation_matrix,1)
+        do i=1,size(operation_matrix(1, :))
             rhs(i) = rhs(i)/operation_matrix(i,i)
         end do
 
@@ -89,8 +90,9 @@ module StateTools
     subroutine prepareBackwardForSolver(operation_matrix, rhs)
         real(kind=dp), dimension(:,:), intent(inout)::operation_matrix
         real(kind=dp), dimension(:), intent(inout)::rhs
-        call matrixBackward(operation_matrix)
         call scaleAnswerVectorForBackward(operation_matrix, rhs)
+        call matrixBackward(operation_matrix)
+        
     end subroutine
 
     function dotProduct(v1, v2) result(dotVal)
@@ -140,33 +142,25 @@ module Solvers
         real(kind=dp), dimension(:), intent(in)::rhs
         real(kind=dp), dimension(size(rhs)):: reverse_rhs
 
-        real(kind=dp), dimension(size(state)*size(rhs), size(rhs)*size(rhs)), intent(in)::operator_matrix
-        real(kind=dp), dimension(size(rhs)*size(state), size(state)*size(rhs)):: reverse_matrix
+        real(kind=dp), dimension(size(rhs), size(rhs)), intent(in)::operator_matrix
+        real(kind=dp), dimension(size(state), size(rhs)):: reverse_matrix
         ! real
         integer::blank, i
         real(kind=dp), dimension(size(state)):: tempState
         ! real(kind=)
         call copyState(tempState, state)
 
-        reverse_matrix(:,:) = operator_matrix(:,:)
+        reverse_matrix = operator_matrix(:, :)
+
+
         reverse_rhs(:) = rhs(:)
         call prepareBackwardForSolver(reverse_matrix, reverse_rhs)
-
-
-
-
         do blank = 1,max_iterations
             !Matrix is diagonally dominant. Therefore convergence is guarenteed
-
             do i = 1, size(state)
-                tempState(i) = dotProduct(reverse_matrix(:, i), state) + reverse_rhs(i)
+                tempState(i) = dotProduct(reverse_matrix(:, i), state) + reverse_rhs(i)             
             end do
-            
-            ! tempState(1) = (3.0+state(3) + state(2))/4.0d0
-            ! tempState(2) = (9.0 - state(3) + (2*state(1)))/6.0d0
-            ! tempState(3) = (-6.0 - state(2) +state(1))/7.0d0
-
-            if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.00001 ) then
+            if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
                 
                 exit
             end if
@@ -177,26 +171,39 @@ module Solvers
         
     end subroutine
 
-    subroutine gaussSeidelSolver(state, max_iterations)
-        integer, intent(in):: max_iterations
+    subroutine gaussSeidelSolver(state, operator_matrix, rhs, max_iterations)
+        integer, intent(in)::max_iterations
         real(kind=dp), dimension(:), intent(inout)::state
-        integer::i 
-        real(kind=dp), dimension(size(state)):: prevState
-        
-        do i = 1,max_iterations
-            call copyState(prevState, state)
-            !Matrix is diagonally dominant. Therefore convergence is guarenteed
-            state(1) = (3.0+state(3) + state(2))/4.0d0
-            state(2) = (9.0 - state(3) + (2*state(1)))/6.0d0
-            state(3) = (-6.0 - state(2) +state(1))/7.0d0
+        real(kind=dp), dimension(:), intent(in)::rhs
+        real(kind=dp), dimension(size(rhs)):: reverse_rhs
 
-            if ( norm(addState(state, 1.0d0, prevState, -1.0d0), -1)<0.00001 ) then
+        real(kind=dp), dimension(size(rhs), size(rhs)), intent(in)::operator_matrix
+        real(kind=dp), dimension(size(state), size(rhs)):: reverse_matrix
+        ! real
+        integer::blank, i
+        real(kind=dp), dimension(size(state)):: tempState
+        ! real(kind=)
+        
+
+        reverse_matrix = operator_matrix(:, :)
+
+
+        reverse_rhs(:) = rhs(:)
+        call prepareBackwardForSolver(reverse_matrix, reverse_rhs)
+        do blank = 1,max_iterations
+            call copyState(tempState, state)
+            !Matrix is diagonally dominant. Therefore convergence is guarenteed
+            do i = 1, size(state)
+                state(i) = dotProduct(reverse_matrix(:, i), state) + reverse_rhs(i)             
+            end do
+            if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
+                
                 exit
             end if
 
-            ! call copyState(state, tempState)
+            
         end do
-
+        
     end subroutine
 end module
 
@@ -212,13 +219,14 @@ program main
     equalsTo = [3,9,-6]
     ! call jacobiSolver(jacobiSol, 100)
     operationalMatrix = reshape([4.0d0, -1.0d0, -1.0d0, -2.0d0, 6.0d0, 1.0d0, -1.0d0, 1.0d0, 7.0d0], shape(operationalMatrix))
-    call jacobiSolver(jacobiSol, operationalMatrix, equalsTo, 100)
-    call gaussSeidelSolver(gaussSeidelSol, 100)
-    print *, "Jacobi solver gave answer: "
-    print *, jacobiSol
+    call jacobiSolver(jacobiSol, operationalMatrix, equalsTo, 1000)
+    print *, "Jacobi solver gives: ", jacobiSol
 
-    print *, "Gauss-Seidel solver gave answer: "
-    print *, gaussSeidelSol
+    call gaussSeidelSolver(gaussSeidelSol, operationalMatrix, equalsTo, 1000)
+    print *, "Gauss Seidel solver gives: ", gaussSeidelSol
+
+    ! call gaussSeidelSolver(gaussSeidelSol, 100)
+
 
 
     
