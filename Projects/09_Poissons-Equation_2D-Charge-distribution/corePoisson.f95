@@ -124,6 +124,33 @@ module StateTools
         real(kind=dp), dimension(size(matrix, 1)), intent(inout)::vector
         vector = matrixMul(matrix, vector)
     end subroutine
+    function flatten(inputMatrix) result(outputVector)
+        real(kind=dp), dimension(:,:)::inputMatrix
+        real(kind=dp), dimension(size(inputMatrix, 1)*size(inputMatrix, 2)):: outputVector
+        integer::i, j
+        do i=1,size(inputMatrix, 1)
+            do j=1,size(inputMatrix, 2)
+                outputVector((i-1)*size(inputMatrix, 2)+j) = inputMatrix(i, j)
+            end do
+        end do
+        
+    end function
+    function reverseFlattenToSquare(inputVector) result(outputMatrix)
+        real(kind=dp), dimension(:)::inputVector
+        real(kind=dp), dimension(int(size(inputVector)**0.5), int(size(inputVector)**0.5)):: outputMatrix
+        integer::i, j
+        if (int(size(inputVector)**0.5)**2/=size(inputVector)) then
+            print*, "Invalid input vector size"
+            stop
+        end if
+        do i=1,int(size(inputVector)**0.5)
+            do j=1,int(size(inputVector)**0.5)
+                outputMatrix(i, j) = inputVector((i-1)*int(size(inputVector)**0.5)+j)
+            end do
+        end do
+    
+        
+    end function
     
 
     
@@ -306,6 +333,7 @@ end module Poisson
 program main
     ! Simulation size 50 x 50, with 100^2 cells?
     use Poisson
+    use StateTools
     integer:: i
     real(kind=dp), dimension(:,:), allocatable:: operation_matrix
     real(kind=dp)::delX, delY
@@ -314,6 +342,8 @@ program main
     integer:: cellsPerUnitLength = 10
     
     real(kind=dp), dimension(:), allocatable:: chargeDist
+    real(kind=dp), dimension(9):: mat = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    real(kind=dp), dimension(:, :), allocatable:: temp
 
 
     width = 50.0d0
@@ -324,7 +354,16 @@ program main
     startY = 0.0d0
     chargeDist = createChargeDistVector(cellsPerUnitLength, startX, startY, delX, delY, p)
 
-    print *, chargeDist
+    ! print *, reverseFlattenToSquare(mat)
+    ! print *, size(reverseFlattenToSquare(mat), 1)
+    ! print *, flatten(reverseFlattenToSquare(mat))
+    ! print *, size(flatten(reverseFlattenToSquare(mat)), 1)
+    temp = reverseFlattenToSquare(mat)
+    do i=1,3
+        print *, temp(i, :)
+        print *, ""
+    end do
+
 
     ! operation_matrix = generateOperationMatrix(10)
     
