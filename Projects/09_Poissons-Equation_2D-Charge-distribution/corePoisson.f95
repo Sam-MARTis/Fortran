@@ -124,6 +124,7 @@ module StateTools
         real(kind=dp), dimension(size(matrix, 1)), intent(inout)::vector
         vector = matrixMul(matrix, vector)
     end subroutine
+    
 
     
 end module StateTools
@@ -205,6 +206,8 @@ module Solvers
         end do
         
     end subroutine
+
+    
 end module Solvers
 
 
@@ -218,7 +221,10 @@ module customFunctions
     pure function p(x, y) result(fx)
         real(kind=dp), intent(in)::x, y
         real(kind=dp)::fx
-        fx = cos(x) - 0.226*x + 0.3*y
+        fx=0
+        if((x == 25) .and. (y==25)) then
+            fx=1
+        end if
     end function
 
 end module customFunctions
@@ -245,7 +251,7 @@ module Poisson
         end do
     end function
 
-    function generateOperationMatrixAndChargeDistribution(n) result (opMatrix)
+    function generateOperationMatrix(n) result (opMatrix)
 
     
             integer, intent(in) :: n
@@ -286,7 +292,7 @@ module Poisson
         procedure(charge_dist)::func
         integer, intent(in) :: n
         real(kind=dp), intent(in) :: dx, dy, x0, y0
-        real(kind=dp), dimension(:), allocatable:: chargeDist
+        real(kind=dp), dimension(n*n):: chargeDist
         integer::i, j
         do i=1,n
             do j=1,n
@@ -298,16 +304,35 @@ module Poisson
 end module Poisson
 
 program main
+    ! Simulation size 50 x 50, with 100^2 cells?
     use Poisson
     integer:: i
     real(kind=dp), dimension(:,:), allocatable:: operation_matrix
-    operation_matrix = generateOperationMatrixAndChargeDistribution(200)
+    real(kind=dp)::delX, delY
+    real(kind=dp):: width, height
+    real(kind=dp)::startX, startY
+    integer:: cellsPerUnitLength = 10
+    
+    real(kind=dp), dimension(:), allocatable:: chargeDist
+
+
+    width = 50.0d0
+    height = 50.0d0
+    delX = width/cellsPerUnitLength
+    delY = height/cellsPerUnitLength
+    startX = 0.0d0
+    startY = 0.0d0
+    chargeDist = createChargeDistVector(cellsPerUnitLength, startX, startY, delX, delY, p)
+
+    print *, chargeDist
+
+    ! operation_matrix = generateOperationMatrix(10)
     
     ! print*, operation_matrix
-    do i = 1,9
-        print *, operation_matrix(i, :)
-        print *, ""
-    end do
+    ! do i = 1,9
+    !     print *, operation_matrix(i, :)
+    !     print *, ""
+    ! end do
 
     ! call gaussSeidelSolver(gaussSeidelSol, 100)
 
