@@ -5,7 +5,6 @@ module StateTools
 
     
     function addState(state1, mul1, state2, mul2) result(resultState)
-        integer, intent(in) :: n 
         real(kind=dp), intent(in), dimension(:):: state1
         real(kind=dp), intent(in), dimension(size(state1))::  state2
         real(kind=dp), intent(in)::mul1, mul2 
@@ -62,7 +61,64 @@ module StateTools
         end do
 
     end subroutine
-A
+
+    
+end module StateTools
+
+
+
+module Solvers
+    use StateTools
+
+    contains
+    subroutine jacobiSolver(state, max_iterations)
+        integer, intent(in)::max_iterations
+        real(kind=dp), dimension(:), intent(inout)::state
+        integer::i 
+        real(kind=dp), dimension(size(state)):: tempState
+        call copyState(tempState, state)
+        do i = 1,max_iterations
+            !Matrix is diagonally dominant. Therefore convergence is guarenteed
+            tempState(1) = (3.0+state(3) + state(2))/4.0d0
+            tempState(2) = (9.0 - state(3) + (2*state(1)))/6.0d0
+            tempState(3) = (-6.0 - state(2) +state(1))/7.0d0
+
+            if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.00001 ) then
+                
+                exit
+            end if
+
+            call copyState(state, tempState)
+        end do
+        call copyState(state, tempState)
+        
+    end subroutine
+
+    subroutine gaussSeidelSolver(state, max_iterations)
+        integer, intent(in):: max_iterations
+        real(kind=dp), dimension(:), intent(inout)::state
+        integer::i 
+        real(kind=dp), dimension(size(state)):: prevState
+        
+        do i = 1,max_iterations
+            call copyState(prevState, state)
+            !Matrix is diagonally dominant. Therefore convergence is guarenteed
+            state(1) = (3.0+state(3) + state(2))/4.0d0
+            state(2) = (9.0 - state(3) + (2*state(1)))/6.0d0
+            state(3) = (-6.0 - state(2) +state(1))/7.0d0
+
+            if ( norm(addState(state, 1.0d0, prevState, -1.0d0), -1)<0.00001 ) then
+                exit
+            end if
+
+            ! call copyState(state, tempState)
+        end do
+
+    end subroutine
+end module
+
+
+program main
 
     real(kind=dp) :: x = 0
     real(kind=dp):: y = 5
