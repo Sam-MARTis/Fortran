@@ -93,18 +93,34 @@ module StateTools
         call scaleAnswerVectorForBackward(operation_matrix, rhs)
     end subroutine
 
-    subroutine matrixMul(matrix, vector)
-        real(kind=dp), dimension(:,:), intent(in)::matrix
-        real(kind=dp), dimension(:), intent(inout)::vector
-        real(kind=dp), dimension(size(vector)):: tempVector
+    function dotProduct(v1, v2) result(dotVal)
+        real(kind=dp), dimension(:)::v1
+        real(kind=dp), dimension(size(v1))::v2
+        real(kind=dp)::dotVal
+        integer:: i
+        dotVal = 0
+        do i=1,size(v1)
+            dotVal = dotVal + (v1(i)*v2(i))
+        end do
+    end function
+
+    function matrixMul(matrix, vector) result(transformedVector)
+        real(kind=dp), dimension(:,:)::matrix
+        real(kind=dp), dimension(size(matrix, 1))::vector
+        real(kind=dp), dimension(size(matrix, 2)):: transformedVector
         integer::i,j
-        do i=1,size(matrix,1)
-            tempVector(i) = 0
-            do j=1,size(matrix,2)
-                tempVector(i) = tempVector(i) + matrix(i,j)*vector(j)
+        do j=1,size(matrix,2)
+            transformedVector(j) = 0
+            do i=1,size(matrix,1)
+                transformedVector(j) = transformedVector(j) + matrix(i,j)*vector(i)
             end do
         end do
-        call copyState(vector, tempVector)
+    end function 
+
+    subroutine applyMatrixMul(matrix, vector)
+        real(kind=dp), dimension(:,:), intent(in)::matrix
+        real(kind=dp), dimension(size(matrix, 1)), intent(inout)::vector
+        vector = matrixMul(matrix, vector)
     end subroutine
 
     
@@ -127,8 +143,9 @@ module Solvers
         real(kind=dp), dimension(size(state)*size(rhs), size(rhs)*size(rhs)), intent(in)::operator_matrix
         real(kind=dp), dimension(size(rhs)*size(state), size(state)*size(rhs)):: reverse_matrix
         ! real
-        integer::i 
+        integer::blank, i
         real(kind=dp), dimension(size(state)):: tempState
+        ! real(kind=)
         call copyState(tempState, state)
 
         reverse_matrix(:,:) = operator_matrix(:,:)
@@ -138,11 +155,16 @@ module Solvers
 
 
 
-        do i = 1,max_iterations
+        do blank = 1,max_iterations
             !Matrix is diagonally dominant. Therefore convergence is guarenteed
-            tempState(1) = (3.0+state(3) + state(2))/4.0d0
-            tempState(2) = (9.0 - state(3) + (2*state(1)))/6.0d0
-            tempState(3) = (-6.0 - state(2) +state(1))/7.0d0
+
+            do i = 1, size(state)
+                tempState(i) = dotProduct(reverse_matrix(:, i), state) + reverse_rhs(i)
+            end do
+            
+            ! tempState(1) = (3.0+state(3) + state(2))/4.0d0
+            ! tempState(2) = (9.0 - state(3) + (2*state(1)))/6.0d0
+            ! tempState(3) = (-6.0 - state(2) +state(1))/7.0d0
 
             if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.00001 ) then
                 
@@ -183,9 +205,14 @@ program main
     use Solvers
 
     real(kind=dp), dimension(3):: jacobiSol, gaussSeidelSol
+    real(kind=dp), dimension(3, 3)::operationalMatrix
+    real(kind=dp), dimension(3):: equalsTo
     jacobiSol = [0,0,0]
     gaussSeidelSol = [0,0,0]
+    equalsTo = [3,9,-6]
     ! call jacobiSolver(jacobiSol, 100)
+    operationalMatrix = reshape([4.0d0, -1.0d0, -1.0d0, -2.0d0, 6.0d0, 1.0d0, -1.0d0, 1.0d0, 7.0d0], shape(operationalMatrix))
+    call jacobiSolver(jacobiSol, operationalMatrix, equalsTo, 100)
     call gaussSeidelSolver(gaussSeidelSol, 100)
     print *, "Jacobi solver gave answer: "
     print *, jacobiSol
