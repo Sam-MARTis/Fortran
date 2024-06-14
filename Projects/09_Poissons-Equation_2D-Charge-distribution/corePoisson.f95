@@ -1,0 +1,318 @@
+module StateTools
+    integer, parameter, public ::dp = kind(1.0d0)
+
+    contains
+
+    
+    function addState(state1, mul1, state2, mul2) result(resultState)
+        real(kind=dp), intent(in), dimension(:):: state1
+        real(kind=dp), intent(in), dimension(size(state1))::  state2
+        real(kind=dp), intent(in)::mul1, mul2 
+        real(kind=dp), dimension(size(state1)):: resultState
+        integer::i = 0
+        do i=1,size(state1)
+            resultState(i) = state1(i)*mul1 + state2(i)*mul2
+        end do
+    end function addState
+
+    function mul(n, state, mull) result(resultState)
+        integer, intent(in) :: n 
+        real(kind=dp), intent(in), dimension(n)::state
+        real(kind=dp), intent(in)::mull
+        real(kind=dp), dimension(n):: resultState
+        integer::i = 0
+        do i=1,n 
+            resultState(i) = state(i)*mull
+        end do
+    end function mul
+
+
+    
+    function norm(state, l) result(normVal)
+        ! l2 is euclidean norm while l(-1) will be interpreted at l_infty norm
+        !Beware of overflow
+        real(kind=dp), dimension(:)::state
+        integer:: l 
+        real(kind=dp):: normVal
+        integer::i
+        normVal = 0.0d0
+        if ( l==(-1) ) then
+            do i=1, size(state)
+                if(state(i)>normVal) then
+                    normVal = state(i)
+                end if
+            end do
+        else
+            do i=1, size(state)
+                normVal = normVal + ((abs(state(i)))**(1.0d0*l))
+            end do
+            normVal = normVal**(1.0d0/l)
+        end if
+    end function
+
+
+
+    subroutine copyState(targetState, originalState)
+        real(kind=dp),dimension(:), intent(in):: originalState
+        real(kind=dp),dimension(size(originalState)), intent(out)::targetState
+        integer::i =  1
+        do i=1, size(originalState)
+            targetState(i) = originalState(i)
+        end do
+
+    end subroutine
+
+    subroutine matrixBackward(operation_matrix)
+        real(kind=dp), dimension(:,:), intent(inout)::operation_matrix
+        integer::i,j
+        real(kind=dp) :: mulFactor = 1.0d0
+        do i=1,size(operation_matrix(:, 1))
+            mulFactor = operation_matrix(i,i)
+
+            do j=1,size(operation_matrix(1, :))
+                operation_matrix(i,j) = -operation_matrix(i,j)/mulFactor
+            end do
+            operation_matrix(i,i) = 0
+        end do
+
+    end subroutine
+
+    subroutine scaleAnswerVectorForBackward(operation_matrix, rhs)
+        real(kind=dp), dimension(:,:), intent(in)::operation_matrix
+        real(kind=dp), dimension(:), intent(inout)::rhs
+        integer::i
+        do i=1,size(operation_matrix(1, :))
+            rhs(i) = rhs(i)/operation_matrix(i,i)
+        end do
+
+    end subroutine
+
+    subroutine prepareBackwardForSolver(operation_matrix, rhs)
+        real(kind=dp), dimension(:,:), intent(inout)::operation_matrix
+        real(kind=dp), dimension(:), intent(inout)::rhs
+        call scaleAnswerVectorForBackward(operation_matrix, rhs)
+        call matrixBackward(operation_matrix)
+        
+    end subroutine
+
+    function dotProduct(v1, v2) result(dotVal)
+        real(kind=dp), dimension(:)::v1
+        real(kind=dp), dimension(size(v1))::v2
+        real(kind=dp)::dotVal
+        integer:: i
+        dotVal = 0
+        do i=1,size(v1)
+            dotVal = dotVal + (v1(i)*v2(i))
+        end do
+    end function
+
+    function matrixMul(matrix, vector) result(transformedVector)
+        real(kind=dp), dimension(:,:)::matrix
+        real(kind=dp), dimension(size(matrix, 1))::vector
+        real(kind=dp), dimension(size(matrix, 2)):: transformedVector
+        integer::i,j
+        do j=1,size(matrix,2)
+            transformedVector(j) = 0
+            do i=1,size(matrix,1)
+                transformedVector(j) = transformedVector(j) + matrix(i,j)*vector(i)
+            end do
+        end do
+    end function 
+
+    subroutine applyMatrixMul(matrix, vector)
+        real(kind=dp), dimension(:,:), intent(in)::matrix
+        real(kind=dp), dimension(size(matrix, 1)), intent(inout)::vector
+        vector = matrixMul(matrix, vector)
+    end subroutine
+
+    
+end module StateTools
+
+
+
+module Solvers
+    use StateTools
+
+    contains
+
+    ! subroutine
+    subroutine jacobiSolver(state, operator_matrix, rhs, max_iterations)
+        integer, intent(in)::max_iterations
+        real(kind=dp), dimension(:), intent(inout)::state
+        real(kind=dp), dimension(:), intent(in)::rhs
+        real(kind=dp), dimension(size(rhs)):: reverse_rhs
+
+        real(kind=dp), dimension(size(rhs), size(rhs)), intent(in)::operator_matrix
+        real(kind=dp), dimension(size(state), size(rhs)):: reverse_matrix
+        ! real
+        integer::blank, i
+        real(kind=dp), dimension(size(state)):: tempState
+        ! real(kind=)
+        call copyState(tempState, state)
+
+        reverse_matrix = operator_matrix(:, :)
+
+
+        reverse_rhs(:) = rhs(:)
+        call prepareBackwardForSolver(reverse_matrix, reverse_rhs)
+        do blank = 1,max_iterations
+            !Matrix is diagonally dominant. Therefore convergence is guarenteed
+            do i = 1, size(state)
+                tempState(i) = dotProduct(reverse_matrix(:, i), state) + reverse_rhs(i)             
+            end do
+            if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
+                
+                exit
+            end if
+
+            call copyState(state, tempState)
+        end do
+        call copyState(state, tempState)
+        
+    end subroutine
+
+    subroutine gaussSeidelSolver(state, operator_matrix, rhs, max_iterations)
+        integer, intent(in)::max_iterations
+        real(kind=dp), dimension(:), intent(inout)::state
+        real(kind=dp), dimension(:), intent(in)::rhs
+        real(kind=dp), dimension(size(rhs)):: reverse_rhs
+
+        real(kind=dp), dimension(size(rhs), size(rhs)), intent(in)::operator_matrix
+        real(kind=dp), dimension(size(state), size(rhs)):: reverse_matrix
+        ! real
+        integer::blank, i
+        real(kind=dp), dimension(size(state)):: tempState
+        ! real(kind=)
+        
+
+        reverse_matrix = operator_matrix(:, :)
+
+
+        reverse_rhs(:) = rhs(:)
+        call prepareBackwardForSolver(reverse_matrix, reverse_rhs)
+        do blank = 1,max_iterations
+            call copyState(tempState, state)
+            !Matrix is diagonally dominant. Therefore convergence is guarenteed
+            do i = 1, size(state)
+                state(i) = dotProduct(reverse_matrix(:, i), state) + reverse_rhs(i)             
+            end do
+            if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
+                
+                exit
+            end if
+
+            
+        end do
+        
+    end subroutine
+end module Solvers
+
+
+
+module customFunctions
+    use StateTools, only: dp
+    implicit none
+    
+    
+    contains
+    pure function p(x, y) result(fx)
+        real(kind=dp), intent(in)::x, y
+        real(kind=dp)::fx
+        fx = cos(x) - 0.226*x + 0.3*y
+    end function
+
+end module customFunctions
+
+module Poisson
+    ! use customFunctions
+    use StateTools
+    use Solvers
+    use customFunctions
+
+    contains
+    function makeSquareCellGrid(n) result(grid)
+        integer, intent(in)::n
+        real(kind=dp), dimension(n, n)::grid
+        real(kind=dp) :: dx, dy
+        integer::i, j
+        do i=1,n
+
+            do j=1,n
+                grid(i, j) = 0
+                ! grid(i, j, 1) = 0
+                ! grid(i, j, 2) = p(i*dx, j*dy)
+            end do
+        end do
+    end function
+
+    function generateOperationMatrixAndChargeDistribution(n) result (opMatrix)
+
+    
+            integer, intent(in) :: n
+            real(kind=dp), dimension(n*n,n*n):: opMatrix
+            opMatrix(:,:) = 0.0d0
+            do j=1,n 
+                do i=1,n 
+                    if(i-1>0) then
+                        opMatrix((i-1)*n+j, (i-2)*n+j) = 1.0d0
+                    end if
+                    if(i+1<=n) then
+                        opMatrix((i-1)*n+j, i*n+j) = 1.0d0
+                    end if
+                    if(j-1>0) then
+                        opMatrix((i-1)*n+j, (i-1)*n+j-1) = 1.0d0
+                    end if
+                    if(j+1<=n) then
+                        opMatrix((i-1)*n+j, (i-1)*n+j+1) = 1.0d0
+                    end if
+                end do
+            end do
+            do i = 1,n*n 
+                opMatrix(i, i) = -4.0d0
+            end do
+
+      
+    end function
+    function createChargeDistVector(n, x0, y0, dx, dy, func) result(chargeDist)
+        interface
+            pure function charge_dist(x, y) result(p)
+                import dp
+                implicit none
+                real(kind=dp), intent(in)::x, y
+                real(kind=dp)::p
+            end function charge_dist
+        end interface
+
+        procedure(charge_dist)::func
+        integer, intent(in) :: n
+        real(kind=dp), intent(in) :: dx, dy, x0, y0
+        real(kind=dp), dimension(:), allocatable:: chargeDist
+        integer::i, j
+        do i=1,n
+            do j=1,n
+                chargeDist((i-1)*n+j) = func(x0+j*dx, y0+i*dy)
+            end do
+        end do
+    end function
+
+end module Poisson
+
+program main
+    use Poisson
+    integer:: i
+    real(kind=dp), dimension(:,:), allocatable:: operation_matrix
+    operation_matrix = generateOperationMatrixAndChargeDistribution(200)
+    
+    ! print*, operation_matrix
+    do i = 1,9
+        print *, operation_matrix(i, :)
+        print *, ""
+    end do
+
+    ! call gaussSeidelSolver(gaussSeidelSol, 100)
+
+
+
+    
+
+end program main
