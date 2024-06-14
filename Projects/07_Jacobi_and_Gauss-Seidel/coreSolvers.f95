@@ -62,6 +62,51 @@ module StateTools
 
     end subroutine
 
+    subroutine matrixBackward(operation_matrix)
+        real(kind=dp), dimension(:,:), intent(inout)::operation_matrix
+        integer::i,j
+        real(kind=dp) :: mulFactor = 1.0d0
+        do i=1,size(operation_matrix,1)
+            mulFactor = operation_matrix(i,i)
+            do j=1,size(operation_matrix,2)
+                operation_matrix(i,j) = -operation_matrix(i,j)/mulFactor
+            end do
+            operation_matrix(i,i) = 0
+        end do
+
+    end subroutine
+
+    subroutine scaleAnswerVectorForBackward(operation_matrix, rhs)
+        real(kind=dp), dimension(:,:), intent(in)::operation_matrix
+        real(kind=dp), dimension(:), intent(inout)::rhs
+        integer::i
+        do i=1,size(operation_matrix,1)
+            rhs(i) = rhs(i)/operation_matrix(i,i)
+        end do
+
+    end subroutine
+
+    subroutine prepareBackwardForSolver(operation_matrix, rhs)
+        real(kind=dp), dimension(:,:), intent(inout)::operation_matrix
+        real(kind=dp), dimension(:), intent(inout)::rhs
+        call matrixBackward(operation_matrix)
+        call scaleAnswerVectorForBackward(operation_matrix, rhs)
+    end subroutine
+
+    subroutine matrixMul(matrix, vector)
+        real(kind=dp), dimension(:,:), intent(in)::matrix
+        real(kind=dp), dimension(:), intent(inout)::vector
+        real(kind=dp), dimension(size(vector)):: tempVector
+        integer::i,j
+        do i=1,size(matrix,1)
+            tempVector(i) = 0
+            do j=1,size(matrix,2)
+                tempVector(i) = tempVector(i) + matrix(i,j)*vector(j)
+            end do
+        end do
+        call copyState(vector, tempVector)
+    end subroutine
+
     
 end module StateTools
 
@@ -71,12 +116,28 @@ module Solvers
     use StateTools
 
     contains
-    subroutine jacobiSolver(state, max_iterations)
+
+    ! subroutine
+    subroutine jacobiSolver(state, operator_matrix, rhs, max_iterations)
         integer, intent(in)::max_iterations
         real(kind=dp), dimension(:), intent(inout)::state
+        real(kind=dp), dimension(:), intent(in)::rhs
+        real(kind=dp), dimension(size(rhs)):: reverse_rhs
+
+        real(kind=dp), dimension(size(state)*size(rhs), size(rhs)*size(rhs)), intent(in)::operator_matrix
+        real(kind=dp), dimension(size(rhs)*size(state), size(state)*size(rhs)):: reverse_matrix
+        ! real
         integer::i 
         real(kind=dp), dimension(size(state)):: tempState
         call copyState(tempState, state)
+
+        reverse_matrix(:,:) = operator_matrix(:,:)
+        reverse_rhs(:) = rhs(:)
+        call prepareBackwardForSolver(reverse_matrix, reverse_rhs)
+
+
+
+
         do i = 1,max_iterations
             !Matrix is diagonally dominant. Therefore convergence is guarenteed
             tempState(1) = (3.0+state(3) + state(2))/4.0d0
@@ -119,31 +180,20 @@ end module
 
 
 program main
+    use Solvers
 
-    real(kind=dp) :: x = 0
-    real(kind=dp):: y = 5
-    real(kind=dp):: z = 0
-    real(kind=dp):: t = 1
-    real(kind=dp):: dt = 0.001
-    real(kind=dp), dimension(4) :: state 
-    integer:: i= 0
-    state(1) = x
-    state(2) = y
-    state(3) = z
-    state(4) = t
+    real(kind=dp), dimension(3):: jacobiSol, gaussSeidelSol
+    jacobiSol = [0,0,0]
+    gaussSeidelSol = [0,0,0]
+    ! call jacobiSolver(jacobiSol, 100)
+    call gaussSeidelSolver(gaussSeidelSol, 100)
+    print *, "Jacobi solver gave answer: "
+    print *, jacobiSol
 
-
-    open(1, file='solutionValues.txt', status='old')
-
-    do i=1, 100000
-        call updateValues(4, state, dt)
-        ! print*, state(3), state(1)
-        write(1,*) state(1), state(2), state(3)
-    end do
-    close(1)
-    call execute_command_line('gnuplot -p '//'plot3D.plt')
+    print *, "Gauss-Seidel solver gave answer: "
+    print *, gaussSeidelSol
 
 
-
+    
 
 end program main
