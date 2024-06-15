@@ -224,10 +224,10 @@ module Solvers
             do i = 1, size(state)
                 state(i) = dotProduct(reverse_matrix(:, i), state) + reverse_rhs(i)             
             end do
-            if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
+            ! if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
                 
-                exit
-            end if
+            !     exit
+            ! end if
 
             
         end do
@@ -248,10 +248,10 @@ module customFunctions
     pure function p(x, y) result(fx)
         real(kind=dp), intent(in)::x, y
         real(kind=dp)::fx
-        fx=0
-        if((x == 25) .and. (y==25)) then
-            fx=1
-        end if
+        fx= 10*(x+y)
+        ! if((x == 25) .and. (y==25)) then
+        !     fx=1
+        ! end if
     end function
 
 end module customFunctions
@@ -278,30 +278,31 @@ module Poisson
         end do
     end function
 
-    function generateOperationMatrix(n) result (opMatrix)
+    function generateOperationMatrix(n, dx, dy) result (opMatrix)
 
     
             integer, intent(in) :: n
             real(kind=dp), dimension(n*n,n*n):: opMatrix
+            real(kind=dp)::dx, dy
             opMatrix(:,:) = 0.0d0
             do j=1,n 
                 do i=1,n 
                     if(i-1>0) then
-                        opMatrix((i-1)*n+j, (i-2)*n+j) = 1.0d0
+                        opMatrix((i-1)*n+j, (i-2)*n+j) = 1.0d0/(dx*dy*(-1.0d0))
                     end if
                     if(i+1<=n) then
-                        opMatrix((i-1)*n+j, i*n+j) = 1.0d0
+                        opMatrix((i-1)*n+j, i*n+j) = 1.0d0/(dx*dy*(-1.0d0))
                     end if
                     if(j-1>0) then
-                        opMatrix((i-1)*n+j, (i-1)*n+j-1) = 1.0d0
+                        opMatrix((i-1)*n+j, (i-1)*n+j-1) = 1.0d0/(dx*dy*(-1.0d0))
                     end if
                     if(j+1<=n) then
-                        opMatrix((i-1)*n+j, (i-1)*n+j+1) = 1.0d0
+                        opMatrix((i-1)*n+j, (i-1)*n+j+1) = 1.0d0/(dx*dy*(-1.0d0))
                     end if
                 end do
             end do
             do i = 1,n*n 
-                opMatrix(i, i) = -4.0d0
+                opMatrix(i, i) = -4.0d0/(dx*dy*(-1.0d0))
             end do
 
       
@@ -323,10 +324,16 @@ module Poisson
         integer::i, j
         do i=1,n
             do j=1,n
-                chargeDist((i-1)*n+j) = func(x0+j*dx, y0+i*dy)
+                chargeDist((i-1)*n+j) = 1.0d0*func(x0+j*dx, y0+i*dy)
             end do
         end do
     end function
+    ! call jacobiSolver(jacobiSol, operationalMatrix, equalsTo, 1000)
+    ! print *, "Jacobi solver gives: ", jacobiSol
+    ! subroutine solvePoisson(solMat, operationMatrix, equalsTo, iterations)
+
+    ! end subroutine
+
 
 end module Poisson
 
@@ -339,11 +346,15 @@ program main
     real(kind=dp)::delX, delY
     real(kind=dp):: width, height
     real(kind=dp)::startX, startY
-    integer:: cellsPerUnitLength = 10
+    
+    integer:: cellsPerUnitLength = 100
     
     real(kind=dp), dimension(:), allocatable:: chargeDist
     real(kind=dp), dimension(9):: mat = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     real(kind=dp), dimension(:, :), allocatable:: temp
+    real(kind=dp), dimension(:, :), allocatable::grid
+    real(kind=dp), dimension(:), allocatable::flattened_grid
+
 
 
     width = 50.0d0
@@ -353,19 +364,50 @@ program main
     startX = 0.0d0
     startY = 0.0d0
     chargeDist = createChargeDistVector(cellsPerUnitLength, startX, startY, delX, delY, p)
+    grid = makeSquareCellGrid(cellsPerUnitLength)
+    ! print *, chargeDist
+
+    operation_matrix = generateOperationMatrix(cellsPerUnitLength, delX, delY)
+    ! print *, operation_matrix
+    ! print *, generateOperationMatrix(cellsPerUnitLength, delX, delY)
+    
+    flattened_grid = flatten(grid)
+    ! print *, flattened_grid
+    ! print *, operation_matrix
+
+    
+
+    call gaussSeidelSolver(flattened_grid, operation_matrix, chargeDist, 10)
+    ! print *, flattened_grid
+    
+    grid = reverseFlattenToSquare(flattened_grid)
+    do i=1, size(grid, 1)
+        print *, grid(i, :)
+        print *, ""
+    end do
+    ! print *, grid
+
+    ! do i=1,cellsPerUnitLength
+    !     print *, grid(i, :)
+    ! end do
+
+
+
+    ! print *, chargeDist
+    
 
     ! print *, reverseFlattenToSquare(mat)
     ! print *, size(reverseFlattenToSquare(mat), 1)
     ! print *, flatten(reverseFlattenToSquare(mat))
     ! print *, size(flatten(reverseFlattenToSquare(mat)), 1)
-    temp = reverseFlattenToSquare(mat)
-    do i=1,3
-        print *, temp(i, :)
-        print *, ""
-    end do
+    ! temp = reverseFlattenToSquare(mat)
+    ! do i=1,3
+    !     print *, temp(i, :)
+    !     print *, ""
+    ! end do
 
 
-    ! operation_matrix = generateOperationMatrix(10)
+    ! operation_matrix = generateOperationMatrix(10, delX, delY)
     
     ! print*, operation_matrix
     ! do i = 1,9
@@ -376,6 +418,12 @@ program main
     ! call gaussSeidelSolver(gaussSeidelSol, 100)
 
 
+    open (1, file = 'solutionValues.txt', status="old")
+    do i = 1,cellsPerUnitLength
+      write(1,*) (grid(i, j), j = 1, cellsPerUnitLength)
+    end do
+    close(1)
+    ! Now plot this in gnuplot using the following commands
 
     
 
