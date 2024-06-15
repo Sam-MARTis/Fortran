@@ -66,13 +66,13 @@ module StateTools
         real(kind=dp), dimension(:,:), intent(inout)::operation_matrix
         integer::i,j
         real(kind=dp) :: mulFactor = 1.0d0
-        do i=1,size(operation_matrix(:, 1))
-            mulFactor = operation_matrix(i,i)
+        do j=1,size(operation_matrix(1, :))
+            mulFactor = operation_matrix(j,j)
 
-            do j=1,size(operation_matrix(1, :))
+            do i=1,size(operation_matrix(:,1))
                 operation_matrix(i,j) = -operation_matrix(i,j)/mulFactor
             end do
-            operation_matrix(i,i) = 0
+            operation_matrix(j,j) = 0
         end do
 
     end subroutine
@@ -248,7 +248,7 @@ module customFunctions
     pure function p(x, y) result(fx)
         real(kind=dp), intent(in)::x, y
         real(kind=dp)::fx
-        fx= 10*(x+y)
+        fx= 10*(x)
         ! if((x == 25) .and. (y==25)) then
         !     fx=1
         ! end if
@@ -347,7 +347,7 @@ program main
     real(kind=dp):: width, height
     real(kind=dp)::startX, startY
     
-    integer:: cellsPerUnitLength = 100
+    integer:: cellsPerUnitLength = 50
     
     real(kind=dp), dimension(:), allocatable:: chargeDist
     real(kind=dp), dimension(9):: mat = [1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -357,8 +357,8 @@ program main
 
 
 
-    width = 50.0d0
-    height = 50.0d0
+    width = 5.0d0
+    height = 5.0d0
     delX = width/cellsPerUnitLength
     delY = height/cellsPerUnitLength
     startX = 0.0d0
@@ -377,14 +377,14 @@ program main
 
     
 
-    call gaussSeidelSolver(flattened_grid, operation_matrix, chargeDist, 10)
+    call jacobiSolver(flattened_grid, operation_matrix, chargeDist, 2000)
     ! print *, flattened_grid
     
     grid = reverseFlattenToSquare(flattened_grid)
-    do i=1, size(grid, 1)
-        print *, grid(i, :)
-        print *, ""
-    end do
+    ! do i=1, size(grid, 1)
+    !     print *, grid(i, :)
+    !     print *, ""
+    ! end do
     ! print *, grid
 
     ! do i=1,cellsPerUnitLength
