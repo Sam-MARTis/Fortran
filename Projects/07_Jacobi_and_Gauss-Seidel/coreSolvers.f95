@@ -29,26 +29,25 @@ module StateTools
 
     
     function norm(state, l) result(normVal)
-        ! l2 is euclidean norm while l(-1) will be interpreted at l_infty norm
-        !Beware of overflow
-        real(kind=dp), dimension(:)::state
-        integer:: l 
+        real(kind=dp), intent(in), dimension(:):: state
+        integer, intent(in):: l 
         real(kind=dp):: normVal
-        integer::i
+        integer:: i
         normVal = 0.0d0
         if ( l==(-1) ) then
             do i=1, size(state)
-                if(state(i)>normVal) then
-                    normVal = state(i)
+                if(abs(state(i))>normVal) then
+                    normVal = abs(state(i))
                 end if
             end do
         else
             do i=1, size(state)
-                normVal = normVal + ((abs(state(i)))**(1.0d0*l))
+                normVal = normVal + ((abs(state(i)))**l)
             end do
             normVal = normVal**(1.0d0/l)
         end if
-    end function
+    end function norm
+    
 
 
 
@@ -160,10 +159,10 @@ module Solvers
             do i = 1, size(state)
                 tempState(i) = dotProduct(reverse_matrix(:, i), state) + reverse_rhs(i)             
             end do
-            if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
+            ! if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
                 
-                exit
-            end if
+            !     exit
+            ! end if
 
             call copyState(state, tempState)
         end do
@@ -196,10 +195,10 @@ module Solvers
             do i = 1, size(state)
                 state(i) = dotProduct(reverse_matrix(:, i), state) + reverse_rhs(i)             
             end do
-            if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
+            ! if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
                 
-                exit
-            end if
+            !     exit
+            ! end if
 
             
         end do
@@ -219,10 +218,10 @@ program main
     equalsTo = [3,9,-6]
     ! call jacobiSolver(jacobiSol, 100)
     operationalMatrix = reshape([4.0d0, -1.0d0, -1.0d0, -2.0d0, 6.0d0, 1.0d0, -1.0d0, 1.0d0, 7.0d0], shape(operationalMatrix))
-    call jacobiSolver(jacobiSol, operationalMatrix, equalsTo, 1000)
+    call jacobiSolver(jacobiSol, operationalMatrix, equalsTo, 500)
     print *, "Jacobi solver gives: ", jacobiSol
 
-    call gaussSeidelSolver(gaussSeidelSol, operationalMatrix, equalsTo, 1000)
+    call gaussSeidelSolver(gaussSeidelSol, operationalMatrix, equalsTo, 500)
     print *, "Gauss Seidel solver gives: ", gaussSeidelSol
 
     ! call gaussSeidelSolver(gaussSeidelSol, 100)
