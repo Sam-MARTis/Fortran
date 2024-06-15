@@ -95,9 +95,9 @@ module StateTools
         
     end subroutine
 
-    function dotProduct(v1, v2) result(dotVal)
-        real(kind=dp), dimension(:)::v1
-        real(kind=dp), dimension(size(v1))::v2
+    pure function dotProduct(v1, v2) result(dotVal)
+        real(kind=dp), dimension(:), intent(in)::v1
+        real(kind=dp), dimension(size(v1)), intent(in)::v2
         real(kind=dp)::dotVal
         integer:: i
         dotVal = 0
@@ -178,6 +178,7 @@ module Solvers
         ! real(kind=)
         call copyState(tempState, state)
 
+
         reverse_matrix = operator_matrix(:, :)
 
 
@@ -185,15 +186,17 @@ module Solvers
         call prepareBackwardForSolver(reverse_matrix, reverse_rhs)
         do blank = 1,max_iterations
             !Matrix is diagonally dominant. Therefore convergence is guarenteed
-            do i = 1, size(state)
+            do concurrent (i = 1:size(state))
                 tempState(i) = dotProduct(reverse_matrix(:, i), state) + reverse_rhs(i)             
             end do
-            if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
+            ! if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
                 
-                exit
-            end if
+            !     exit
+            ! end if
 
             call copyState(state, tempState)
+            ! print *, state
+            ! print *, ""
         end do
         call copyState(state, tempState)
         
@@ -218,6 +221,16 @@ module Solvers
 
         reverse_rhs(:) = rhs(:)
         call prepareBackwardForSolver(reverse_matrix, reverse_rhs)
+        ! print *, "Reverse matrix:"
+        ! do i=1,size(reverse_matrix(1, :))
+        !     print *, reverse_matrix(:, i)
+        !     print *, operator_matrix(:, i)
+        !     print *, ""
+        ! end do
+        ! print *, reverse_matrix
+        ! print *, "Reverse end"
+        ! print *, reverse_rhs
+        ! print *, "Reverse rhs end"
         do blank = 1,max_iterations
             call copyState(tempState, state)
             !Matrix is diagonally dominant. Therefore convergence is guarenteed
@@ -233,9 +246,7 @@ module Solvers
         end do
         
     end subroutine
-
-    
-end module Solvers
+end module
 
 
 
