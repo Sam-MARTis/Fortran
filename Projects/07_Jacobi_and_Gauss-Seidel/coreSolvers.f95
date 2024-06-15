@@ -94,9 +94,10 @@ module StateTools
         
     end subroutine
 
-    function dotProduct(v1, v2) result(dotVal)
-        real(kind=dp), dimension(:)::v1
-        real(kind=dp), dimension(size(v1))::v2
+    pure function dotProduct(v1, v2) result(dotVal)
+
+        real(kind=dp), dimension(:), intent(in)::v1
+        real(kind=dp), dimension(size(v1)), intent(in)::v2
         real(kind=dp)::dotVal
         integer:: i
         dotVal = 0
@@ -157,7 +158,7 @@ module Solvers
         call prepareBackwardForSolver(reverse_matrix, reverse_rhs)
         do blank = 1,max_iterations
             !Matrix is diagonally dominant. Therefore convergence is guarenteed
-            do i = 1, size(state)
+            do concurrent (i = 1:size(state))
                 tempState(i) = dotProduct(reverse_matrix(:, i), state) + reverse_rhs(i)             
             end do
             ! if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
