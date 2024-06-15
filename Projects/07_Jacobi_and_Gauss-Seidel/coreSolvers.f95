@@ -65,13 +65,13 @@ module StateTools
         real(kind=dp), dimension(:,:), intent(inout)::operation_matrix
         integer::i,j
         real(kind=dp) :: mulFactor = 1.0d0
-        do i=1,size(operation_matrix(:, 1))
-            mulFactor = operation_matrix(i,i)
+        do j=1,size(operation_matrix(1, :))
+            mulFactor = operation_matrix(j,j)
 
-            do j=1,size(operation_matrix(1, :))
+            do i=1,size(operation_matrix(:,1))
                 operation_matrix(i,j) = -operation_matrix(i,j)/mulFactor
             end do
-            operation_matrix(i,i) = 0
+            operation_matrix(j,j) = 0
         end do
 
     end subroutine
@@ -149,6 +149,7 @@ module Solvers
         ! real(kind=)
         call copyState(tempState, state)
 
+
         reverse_matrix = operator_matrix(:, :)
 
 
@@ -165,6 +166,8 @@ module Solvers
             ! end if
 
             call copyState(state, tempState)
+            ! print *, state
+            ! print *, ""
         end do
         call copyState(state, tempState)
         
@@ -189,6 +192,16 @@ module Solvers
 
         reverse_rhs(:) = rhs(:)
         call prepareBackwardForSolver(reverse_matrix, reverse_rhs)
+        ! print *, "Reverse matrix:"
+        ! do i=1,size(reverse_matrix(1, :))
+        !     print *, reverse_matrix(:, i)
+        !     print *, operator_matrix(:, i)
+        !     print *, ""
+        ! end do
+        ! print *, reverse_matrix
+        ! print *, "Reverse end"
+        ! print *, reverse_rhs
+        ! print *, "Reverse rhs end"
         do blank = 1,max_iterations
             call copyState(tempState, state)
             !Matrix is diagonally dominant. Therefore convergence is guarenteed
@@ -224,10 +237,8 @@ program main
     call gaussSeidelSolver(gaussSeidelSol, operationalMatrix, equalsTo, 500)
     print *, "Gauss Seidel solver gives: ", gaussSeidelSol
 
+    print *, dotProduct(operationalMatrix(:, 1), jacobiSol)
+    print *, equalsTo
+    ! print *, dotProduct([1.0d0,2.0d0,3.0d0], [1.0d0,2.0d0,3.0d0])
     ! call gaussSeidelSolver(gaussSeidelSol, 100)
-
-
-
-    
-
 end program main
