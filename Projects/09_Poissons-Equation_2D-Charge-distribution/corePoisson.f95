@@ -277,7 +277,7 @@ module Poisson
     function makeSquareCellGrid(n) result(grid)
         integer, intent(in)::n
         real(kind=dp), dimension(n, n)::grid
-        real(kind=dp) :: dx, dy
+        ! real(kind=dp) :: dx, dy
         integer::i, j
         do i=1,n
 
@@ -332,12 +332,15 @@ module Poisson
         integer, intent(in) :: n
         real(kind=dp), intent(in) :: dx, dy, x0, y0
         real(kind=dp), dimension(n*n):: chargeDist
-        integer::i, j
-        do i=1,n
-            do j=1,n
-                chargeDist((i-1)*n+j) = 1.0d0*func(x0+j*dx, y0+i*dy)
-            end do
-        end do
+        ! integer::i, j
+        ! do i=1,n
+        !     do j=1,n
+        !         chargeDist((i-1)*n+j) = 1.0d0*func(x0+j*dx, y0+i*dy)
+        !     end do
+        ! end do
+        chargeDist(:) = 0
+        chargeDist((int(n/4)-1)*n + int(n/2)) = 1
+        chargeDist((int(3*n/4)-1)*n + int(n/2)) = 1
     end function
     ! call jacobiSolver(jacobiSol, operationalMatrix, equalsTo, 1000)
     ! print *, "Jacobi solver gives: ", jacobiSol
@@ -358,11 +361,11 @@ program main
     real(kind=dp):: width, height
     real(kind=dp)::startX, startY
     
-    integer:: cellsPerUnitLength = 50
+    integer:: cellsPerUnitLength = 40
     
     real(kind=dp), dimension(:), allocatable:: chargeDist
-    real(kind=dp), dimension(9):: mat = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    real(kind=dp), dimension(:, :), allocatable:: temp
+    ! real(kind=dp), dimension(9):: mat = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    ! real(kind=dp), dimension(:, :), allocatable:: temp
     real(kind=dp), dimension(:, :), allocatable::grid
     real(kind=dp), dimension(:), allocatable::flattened_grid
 
@@ -434,7 +437,10 @@ program main
       write(1,*) (grid(i, j), j = 1, cellsPerUnitLength)
     end do
     close(1)
+
+
     ! Now plot this in gnuplot using the following commands
+    call execute_command_line('gnuplot -p plot.plt')
 
     
 
