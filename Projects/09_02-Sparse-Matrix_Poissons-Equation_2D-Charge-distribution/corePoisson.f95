@@ -107,14 +107,14 @@ module StateTools
     end function
     pure function dotSparse(v2, v1) result(dotVal)
         real(kind=dp), dimension(:), intent(in)::v1
-        real(kind=dp), dimension(4, 3), intent(in)::v2
+        real(kind=dp), dimension(4, 2), intent(in)::v2
         real(kind=dp)::dotVal
         integer:: i
         integer::n
-        n = int(sqrt(real(size(v1))))
+        ! n = int(sqrt(real(size(v1))))
         dotVal = 0
         do i=1,4
-            dotVal = dotVal + (v1(int((v2(i, 1)-1)*n + v2(i, 2)))*v2(i, 3))
+            dotVal = dotVal + (v1(int((v2(i, 1))))*v2(i, 2))
         end do
         ! do i=1,size(v1)
         !     dotVal = dotVal + (v1(i)*v2(i, 3))
@@ -223,10 +223,10 @@ module Solvers
         real(kind=dp), dimension(:), intent(in)::rhs
         real(kind=dp), dimension(size(rhs)):: reverse_rhs
 
-        real(kind=dp), dimension(4, size(rhs), 3), intent(in)::operator_matrix
+        real(kind=dp), dimension(4, size(state), 2), intent(in)::operator_matrix
         ! real(kind=dp), dimension(size(state), size(rhs)):: reverse_matrix
         ! real
-        integer::blank, i
+        integer::blank, i, j
         real(kind=dp), dimension(size(state)):: tempState
         ! real(kind=)
         call copyState(tempState, state)
@@ -239,12 +239,27 @@ module Solvers
         do i= 1, size(rhs)
             reverse_rhs(i) = reverse_rhs(i)/4.0d0
         end do
+        print *, operator_matrix(1, 1, 1), operator_matrix(1, 1, 2)
         ! call prepareBackwardForSolver(reverse_matrix, reverse_rhs)
         do blank = 1,max_iterations
             !Matrix is diagonally dominant. Therefore convergence is guarenteed
+            ! print *, "state: ", state
+
             do concurrent (i = 1:size(state))
-                tempState(i) = dotSparse(operator_matrix(:, i, :), state) + reverse_rhs(i)             
+                tempState(i) = 0
+
+                do  j = 1,4
+                    tempState(i) = tempState(i) + operator_matrix(j, i, 2)*state(int(operator_matrix(j, i, 1)))
+                    ! print *, operator_matrix(j, i, 2), state(int(operator_matrix(j, i, 1))), i, j
+                end do 
+                tempState(i) = tempState(i) + reverse_rhs(i)
+
+                
+                ! tempState(i) = dotSparse(operator_matrix(:, i, :), state) + reverse_rhs(i)  
+                ! print *, tempState(i) 
+                     
             end do
+            ! print *, "tempState", tempState    
             ! if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
                 
             !     exit
@@ -377,37 +392,32 @@ module Poisson
     function generateSparseOperationalMatrix(n, dx, dy) result(sparseOpMatrix)
         integer, intent(in) :: n
             real(kind=dp), dimension(n*n,n*n):: opMatrix
-            real(kind=dp), dimension(4, n*n, 3)::sparseOpMatrix 
+            real(kind=dp), dimension(4, n*n, 2)::sparseOpMatrix 
             real(kind=dp)::dx, dy
             opMatrix(:,:) = 0.0d0
             sparseOpMatrix(:,:, :) = 0.0d0
             sparseOpMatrix(:, :, 1) = 1.0d0
-            sparseOpMatrix(:, :, 2) = 1.0d0
 
             do j=1,n 
                 do i=1,n 
                     
                     if(i-1>0) then
-                        sparseOpMatrix(1, (i-1)*n+j, 1) = ((i-1)*1.0d0)
-                        sparseOpMatrix(1, (i-1)*n+j, 2) =  (j*1.0d0)
-                        sparseOpMatrix(1, (i-1)*n+j, 3) = (1.0d0/((1.0d0)))/4.0d0
+                        sparseOpMatrix(1, (i-1)*n+j, 1) = (((i-2))*n + j)*1.0d0
+                        sparseOpMatrix(1, (i-1)*n+j, 2) = (1.0d0/((1.0d0)))/4.0d0
                     end if
 
                     if(i+1<=n) then
-                        sparseOpMatrix(2, (i-1)*n+j, 1) = (i*1.0d0 )+1.0d0
-                        sparseOpMatrix(2, (i-1)*n+j, 2) =  (j*1.0d0)
-                        sparseOpMatrix(2, (i-1)*n+j, 3) = (1.0d0/((1.0d0)))/4.0d0
+                        sparseOpMatrix(2, (i-1)*n+j, 1) = (((i))*n + j)*1.0d0
+                        sparseOpMatrix(2, (i-1)*n+j, 2) = (1.0d0/((1.0d0)))/4.0d0
                     end if
                     
                     if(j-1>0) then
-                        sparseOpMatrix(3, (i-1)*n+j, 1) = (i*1.0d0 )
-                        sparseOpMatrix(3, (i-1)*n+j, 2) =  (j*1.0d0) - 1.0d0
-                        sparseOpMatrix(3, (i-1)*n+j, 3) = (1.0d0/((1.0d0)))/4.0d0
+                        sparseOpMatrix(3, (i-1)*n+j, 1) = (((i-1))*n + (j-1))*1.0d0
+                        sparseOpMatrix(3, (i-1)*n+j, 2) = (1.0d0/((1.0d0)))/4.0d0
                     end if
                     if(j+1<=n) then
-                        sparseOpMatrix(4, (i-1)*n+j, 1) = (i*1.0d0 )
-                        sparseOpMatrix(4, (i-1)*n+j, 2) =  (j*1.0d0) + 1.0d0
-                        sparseOpMatrix(4, (i-1)*n+j, 3) = (1.0d0/((1.0d0)))/4.0d0
+                        sparseOpMatrix(4, (i-1)*n+j, 1) = (((i-1))*n + (j+1))*1.0d0
+                        sparseOpMatrix(4, (i-1)*n+j, 2) = (1.0d0/((1.0d0)))/4.0d0
                     end if
                 end do
             end do
@@ -460,7 +470,7 @@ program main
     real(kind=dp):: width, height
     real(kind=dp)::startX, startY
     
-    integer:: cellsPerUnitLength = 20
+    integer:: cellsPerUnitLength = 100
     real(kind=dp), dimension(:,:,:), allocatable:: operation_matrix
     
     real(kind=dp), dimension(:), allocatable:: chargeDist
@@ -468,11 +478,29 @@ program main
     ! real(kind=dp), dimension(:, :), allocatable:: temp
     real(kind=dp), dimension(:, :), allocatable::grid
     real(kind=dp), dimension(:), allocatable::flattened_grid
+    ! real(kin)
+    real(kind=dp), dimension(4, 2):: temp
+    real(kind=dp), dimension(4)::tempVec
+    temp(:, :) = 1
+    ! do i = 1, 4
+    !     temp(i, 1) = 1.0d0* i
+    ! end do
+    ! temp(4, 2) = 2.0d0
+    ! do i = 1, 4
+    !     tempVec(i) = 2**i
+    ! end do
+    
+    ! print *, tempVec
+    ! print *, temp
+    ! do i = 1,5
+
+    ! end do
+    
 
 
 
-    width = 5.0d0
-    height = 5.0d0
+    width = 50.0d0
+    height = 50.0d0
     delX = width/cellsPerUnitLength
     delY = height/cellsPerUnitLength
     startX = 0.0d0
@@ -483,71 +511,43 @@ program main
 
     
     operation_matrix = generateSparseOperationalMatrix(cellsPerUnitLength, delX, delY)
-    ! operation_matrix = generateOperationMatrix(cellsPerUnitLength, delX, delY)
-    ! print *, operation_matrix
-    ! print *, generateOperationMatrix(cellsPerUnitLength, delX, delY)
-    
+    ! print *, operation_matrix(1, 1, 1),  operation_matrix(1, 1, 2)
     flattened_grid = flatten(grid)
-    do i=1,4
-        print *, operation_matrix(i, 51, :)
-        print *, ""
-    end do
-    ! print *, flattened_grid
-    ! print *, operation_matrix
+    ! do i=1,4
+    !     print *, operation_matrix(i, 22, :)
+    !     print *, ""
+    ! end do
+    
+    ! print *, dotSparse(temp, tempVec)
+    ! print *, 
+    
+
+
+
+
+
+    
 
     
 
     call jacobiSparse(flattened_grid, operation_matrix, chargeDist, 2000)
+    
 
-    ! print *, flattened_grid
     
     grid = reverseFlattenToSquare(flattened_grid)
-    ! do i=1, size(grid, 1)
-    !     print *, grid(i, :)
-    !     print *, ""
-    ! end do
     ! print *, grid
 
-    ! do i=1,cellsPerUnitLength
-    !     print *, grid(i, :)
-    ! end do
-
-
-
-    ! print *, chargeDist
-    
-
-    ! print *, reverseFlattenToSquare(mat)
-    ! print *, size(reverseFlattenToSquare(mat), 1)
-    ! print *, flatten(reverseFlattenToSquare(mat))
-    ! print *, size(flatten(reverseFlattenToSquare(mat)), 1)
-    ! temp = reverseFlattenToSquare(mat)
-    ! do i=1,3
-    !     print *, temp(i, :)
-    !     print *, ""
-    ! end do
-
-
-    ! operation_matrix = generateOperationMatrix(10, delX, delY)
-    
-    ! print*, operation_matrix
-    ! do i = 1,9
-    !     print *, operation_matrix(i, :)
-    !     print *, ""
-    ! end do
-
-    ! call gaussSeidelSolver(gaussSeidelSol, 100)
-
-
-    ! open (1, file = 'solutionValues.txt', status="old")
-    ! do i = 1,cellsPerUnitLength
-    !   write(1,*) (grid(i, j), j = 1, cellsPerUnitLength)
-    ! end do
-    ! close(1)
+    open (1, file = 'solutionValues.txt', status="old")
+    do i = 1,cellsPerUnitLength
+      write(1,*) (grid(i, j), j = 1, cellsPerUnitLength)
+    end do
+    close(1)
 
 
     ! Now plot this in gnuplot using the following commands
     call execute_command_line('gnuplot -p plot.plt')
+
+    ! call execute_command_line('gnuplot -p plot.plt')
 
     
 
