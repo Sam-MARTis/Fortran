@@ -9,5 +9,6 @@ set nokey
 set grid
 set xlabel "x"
 set ylabel "y"
+# set pm3d
 m="solutionValues.txt"
-splot m matrix
+splot m 

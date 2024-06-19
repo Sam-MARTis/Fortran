@@ -145,10 +145,10 @@ module Solvers
         real(kind=dp), dimension(size(rhs), size(rhs)), intent(in)::operator_matrix
         real(kind=dp), dimension(size(state), size(rhs)):: reverse_matrix
         ! real
-        integer::blank, i
-        real(kind=dp), dimension(size(state)):: tempState
+        integer::iteration_count, i
+        real(kind=dp), dimension(size(state)):: nextState
         ! real(kind=)
-        call copyState(tempState, state)
+        call copyState(nextState, state)
 
 
         reverse_matrix = operator_matrix(:, :)
@@ -156,21 +156,25 @@ module Solvers
 
         reverse_rhs(:) = rhs(:)
         call prepareBackwardForSolver(reverse_matrix, reverse_rhs)
-        do blank = 1,max_iterations
-            !Matrix is diagonally dominant. Therefore convergence is guarenteed
-            do concurrent (i = 1:size(state))
-                tempState(i) = dotProduct(reverse_matrix(:, i), state) + reverse_rhs(i)             
-            end do
-            ! if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
-                
-            !     exit
-            ! end if
 
-            call copyState(state, tempState)
-            ! print *, state
-            ! print *, ""
+        do iteration_count = 1,max_iterations
+            !Matrix needs to be diagonally dominant for convergence
+            do concurrent (i = 1:size(state))
+                nextState(i) = dotProduct(reverse_matrix(:, i), state) + reverse_rhs(i)             
+            end do
+
+
+
+
+            !Stop if error is within threshold
+            if ( norm(addState(state, 1.0d0, nextState, -1.0d0), 2)<0.000001 ) then
+                exit
+            end if
+            
+            call copyState(state, nextState)
+   
         end do
-        call copyState(state, tempState)
+        call copyState(state, nextState)
         
     end subroutine
 
