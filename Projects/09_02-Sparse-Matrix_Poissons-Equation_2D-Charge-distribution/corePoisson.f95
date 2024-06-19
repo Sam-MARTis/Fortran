@@ -1,5 +1,5 @@
 module StateTools
-    integer, parameter, public ::dp = kind(1.0d0)
+    integer, parameter, public ::dp = kind(1.0)
 
     contains
 
@@ -28,14 +28,14 @@ module StateTools
 
 
     
-    function norm(state, l) result(normVal)
+    pure function norm(state, l) result(normVal)
         ! l2 is euclidean norm while l(-1) will be interpreted at l_infty norm
         !Beware of overflow
-        real(kind=dp), dimension(:)::state
-        integer:: l 
+        real(kind=dp), dimension(:), intent(in)::state
+        integer, intent(in):: l 
         real(kind=dp):: normVal
         integer::i
-        normVal = 0.0d0
+        normVal = 0.0
         if ( l==(-1) ) then
             do i=1, size(state)
                 if(state(i)>normVal) then
@@ -44,9 +44,9 @@ module StateTools
             end do
         else
             do i=1, size(state)
-                normVal = normVal + ((abs(state(i)))**(1.0d0*l))
+                normVal = normVal + ((abs(state(i)))**(1.0*l))
             end do
-            normVal = normVal**(1.0d0/l)
+            normVal = normVal**(1.0/l)
         end if
     end function
 
@@ -65,7 +65,7 @@ module StateTools
     subroutine matrixBackward(operation_matrix)
         real(kind=dp), dimension(:,:), intent(inout)::operation_matrix
         integer::i,j
-        real(kind=dp) :: mulFactor = 1.0d0
+        real(kind=dp) :: mulFactor = 1.0
         do j=1,size(operation_matrix(1, :))
             mulFactor = operation_matrix(j,j)
 
@@ -204,7 +204,7 @@ module Solvers
             do concurrent (i = 1:size(state))
                 tempState(i) = dotProduct(reverse_matrix(:, i), state) + reverse_rhs(i)             
             end do
-            ! if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
+            ! if ( norm(addState(state, 1.0, tempState, -1.0), -1)<0.000001 ) then
                 
             !     exit
             ! end if
@@ -237,7 +237,7 @@ module Solvers
 
         reverse_rhs(:) = rhs(:)
         do i= 1, size(rhs)
-            reverse_rhs(i) = reverse_rhs(i)/4.0d0
+            reverse_rhs(i) = reverse_rhs(i)/4.0
         end do
         print *, operator_matrix(1, 1, 1), operator_matrix(1, 1, 2)
         ! call prepareBackwardForSolver(reverse_matrix, reverse_rhs)
@@ -260,7 +260,7 @@ module Solvers
                      
             end do
             ! print *, "tempState", tempState    
-            ! if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
+            ! if ( norm(addState(state, 1.0, tempState, -1.0), -1)<0.000001 ) then
                 
             !     exit
             ! end if
@@ -309,7 +309,7 @@ module Solvers
             do i = 1, size(state)
                 state(i) = dotProduct(reverse_matrix(:, i), state) + reverse_rhs(i)             
             end do
-            ! if ( norm(addState(state, 1.0d0, tempState, -1.0d0), -1)<0.000001 ) then
+            ! if ( norm(addState(state, 1.0, tempState, -1.0), -1)<0.000001 ) then
                 
             !     exit
             ! end if
@@ -367,25 +367,25 @@ module Poisson
             integer, intent(in) :: n
             real(kind=dp), dimension(n*n,n*n):: opMatrix
             real(kind=dp)::dx, dy
-            opMatrix(:,:) = 0.0d0
+            opMatrix(:,:) = 0.0
             do j=1,n 
                 do i=1,n 
                     if(i-1>0) then
-                        opMatrix((i-1)*n+j, (i-2)*n+j) = 1.0d0/(dx*dy*(-1.0d0))
+                        opMatrix((i-1)*n+j, (i-2)*n+j) = 1.0/(dx*dy*(-1.0))
                     end if
                     if(i+1<=n) then
-                        opMatrix((i-1)*n+j, i*n+j) = 1.0d0/(dx*dy*(-1.0d0))
+                        opMatrix((i-1)*n+j, i*n+j) = 1.0/(dx*dy*(-1.0))
                     end if
                     if(j-1>0) then
-                        opMatrix((i-1)*n+j, (i-1)*n+j-1) = 1.0d0/(dx*dy*(-1.0d0))
+                        opMatrix((i-1)*n+j, (i-1)*n+j-1) = 1.0/(dx*dy*(-1.0))
                     end if
                     if(j+1<=n) then
-                        opMatrix((i-1)*n+j, (i-1)*n+j+1) = 1.0d0/(dx*dy*(-1.0d0))
+                        opMatrix((i-1)*n+j, (i-1)*n+j+1) = 1.0/(dx*dy*(-1.0))
                     end if
                 end do
             end do
             do i = 1,n*n 
-                opMatrix(i, i) = -4.0d0/(dx*dy*(-1.0d0))
+                opMatrix(i, i) = -4.0/(dx*dy*(-1.0))
             end do
     end function
 
@@ -394,35 +394,35 @@ module Poisson
             real(kind=dp), dimension(n*n,n*n):: opMatrix
             real(kind=dp), dimension(4, n*n, 2)::sparseOpMatrix 
             real(kind=dp)::dx, dy
-            opMatrix(:,:) = 0.0d0
-            sparseOpMatrix(:,:, :) = 0.0d0
-            sparseOpMatrix(:, :, 1) = 1.0d0
+            opMatrix(:,:) = 0.0
+            sparseOpMatrix(:,:, :) = 0.0
+            sparseOpMatrix(:, :, 1) = 1.0
 
             do j=1,n 
                 do i=1,n 
                     
                     if(i-1>0) then
-                        sparseOpMatrix(1, (i-1)*n+j, 1) = (((i-2))*n + j)*1.0d0
-                        sparseOpMatrix(1, (i-1)*n+j, 2) = (1.0d0/((1.0d0)))/4.0d0
+                        sparseOpMatrix(1, (i-1)*n+j, 1) = (((i-2))*n + j)*1.0
+                        sparseOpMatrix(1, (i-1)*n+j, 2) = (1.0/((1.0)))/4.0
                     end if
 
                     if(i+1<=n) then
-                        sparseOpMatrix(2, (i-1)*n+j, 1) = (((i))*n + j)*1.0d0
-                        sparseOpMatrix(2, (i-1)*n+j, 2) = (1.0d0/((1.0d0)))/4.0d0
+                        sparseOpMatrix(2, (i-1)*n+j, 1) = (((i))*n + j)*1.0
+                        sparseOpMatrix(2, (i-1)*n+j, 2) = (1.0/((1.0)))/4.0
                     end if
                     
                     if(j-1>0) then
-                        sparseOpMatrix(3, (i-1)*n+j, 1) = (((i-1))*n + (j-1))*1.0d0
-                        sparseOpMatrix(3, (i-1)*n+j, 2) = (1.0d0/((1.0d0)))/4.0d0
+                        sparseOpMatrix(3, (i-1)*n+j, 1) = (((i-1))*n + (j-1))*1.0
+                        sparseOpMatrix(3, (i-1)*n+j, 2) = (1.0/((1.0)))/4.0
                     end if
                     if(j+1<=n) then
-                        sparseOpMatrix(4, (i-1)*n+j, 1) = (((i-1))*n + (j+1))*1.0d0
-                        sparseOpMatrix(4, (i-1)*n+j, 2) = (1.0d0/((1.0d0)))/4.0d0
+                        sparseOpMatrix(4, (i-1)*n+j, 1) = (((i-1))*n + (j+1))*1.0
+                        sparseOpMatrix(4, (i-1)*n+j, 2) = (1.0/((1.0)))/4.0
                     end if
                 end do
             end do
             ! do i = 1,n*n 
-            !     ! opMatrix(i, i) = -4.0d0/(dx*dy*(-1.0d0))
+            !     ! opMatrix(i, i) = -4.0/(dx*dy*(-1.0))
             ! end do
         
 
@@ -444,7 +444,7 @@ module Poisson
         ! integer::i, j
         ! do i=1,n
         !     do j=1,n
-        !         chargeDist((i-1)*n+j) = 1.0d0*func(x0+j*dx, y0+i*dy)
+        !         chargeDist((i-1)*n+j) = 1.0*func(x0+j*dx, y0+i*dy)
         !     end do
         ! end do
         chargeDist(:) = 0
@@ -482,10 +482,10 @@ program main
     real(kind=dp), dimension(4, 2):: temp
     real(kind=dp), dimension(4)::tempVec
     temp(:, :) = 1
-    ! do i = 1, 4
-    !     temp(i, 1) = 1.0d0* i
+    ! do i = 1, 4ls
+    !     temp(i, 1) = 1.0* i
     ! end do
-    ! temp(4, 2) = 2.0d0
+    ! temp(4, 2) = 2.0
     ! do i = 1, 4
     !     tempVec(i) = 2**i
     ! end do
@@ -499,12 +499,12 @@ program main
 
 
 
-    width = 50.0d0
-    height = 50.0d0
+    width = 50.0
+    height = 50.0
     delX = width/cellsPerUnitLength
     delY = height/cellsPerUnitLength
-    startX = 0.0d0
-    startY = 0.0d0
+    startX = 0.0
+    startY = 0.0
     chargeDist = createChargeDistVector(cellsPerUnitLength, startX, startY, delX, delY, p)
     grid = makeSquareCellGrid(cellsPerUnitLength)
     ! print *, chargeDist
