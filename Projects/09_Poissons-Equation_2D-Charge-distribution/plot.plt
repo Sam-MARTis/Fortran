@@ -11,4 +11,4 @@ set xlabel "x"
 set ylabel "y"
 # set pm3d
 m="solutionValues.txt"
-splot m 
+splot m matrix

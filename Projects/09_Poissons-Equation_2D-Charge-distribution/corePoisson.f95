@@ -361,7 +361,7 @@ program main
     real(kind=dp):: width, height
     real(kind=dp)::startX, startY
     
-    integer:: cellsPerUnitLength = 40
+    integer:: cellsPerUnitLength = 30
     
     real(kind=dp), dimension(:), allocatable:: chargeDist
     ! real(kind=dp), dimension(9):: mat = [1, 2, 3, 4, 5, 6, 7, 8, 9]
