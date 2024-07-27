@@ -69,8 +69,6 @@ module RK4
         dState =  addState(n, dState, 1.0d0, K_arr(3, :), 2.0d0)
         dState =  addState(n, dState, 1.0d0, K_arr(4, :), 1.0d0)
         dState = mul(n, dState, 1.0d0/6)
-        ! dState =  addState(n, K_arr(1, :), 1.0d0, K_arr(2, :), 2.0d0)
-        ! , 1.0d0, K_arr(n, :), 2.0d0)
         state = addState(n, state, 1.0d0, dState, dt)
 
         
