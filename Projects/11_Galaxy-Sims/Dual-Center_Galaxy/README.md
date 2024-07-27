@@ -17,6 +17,7 @@ cd Projects/11_Galaxy-Sims/Dual-Center_Galaxy/
 ```
 
 Next, run the pre built executable and wait as your computer crunches the numbers
+(In case you get a different simulation, run the a.out file instead)
 
 ```bash
 ./galaxy_sim_2k
